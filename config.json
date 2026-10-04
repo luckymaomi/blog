@@ -1,0 +1,14 @@
+{
+  "site": {
+    "title": "Talk",
+    "description": ""
+  },
+  "github": {
+    "repo": "https://github.com/luckymaomi/talk",
+    "branch": "master"
+  },
+  "push": {
+    "remote": "https://github.com/luckymaomi/talk.git",
+    "branch": "master"
+  }
+}

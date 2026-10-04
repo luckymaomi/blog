@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Talk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;500;600&family=Source+Code+Pro:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <h1 class="brand-title">Talk</h1>
+        <button type="button" class="btn primary" id="btn-new">新文章</button>
+        <div class="side-scroll">
+          <div id="post-list" class="post-list"></div>
+        </div>
+        <div class="side-foot">
+          <span id="save-state" class="save-state">就绪</span>
+          <button type="button" class="btn soft" id="btn-push">推送</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <div class="empty" id="empty">
+          <p>选择一篇文章，或新建。</p>
+        </div>
+
+        <section class="editor-shell hidden" id="editor-shell">
+          <header class="editor-bar">
+            <div class="file-meta">
+              <input id="filename" class="filename" spellcheck="false" />
+              <span id="live-title" class="live-title"></span>
+            </div>
+            <div class="bar-actions">
+              <button type="button" class="btn ghost danger" id="btn-delete">删除</button>
+              <button type="button" class="btn soft" id="btn-save">保存</button>
+            </div>
+          </header>
+
+          <div class="split">
+            <div class="pane">
+              <div class="pane-label">Markdown</div>
+              <textarea id="editor" spellcheck="false" placeholder="开始写…"></textarea>
+            </div>
+            <div class="pane">
+              <div class="pane-label">预览</div>
+              <article id="preview" class="preview prose"></article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/admin.js"></script>
+  </body>
+</html>
