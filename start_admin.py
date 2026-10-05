@@ -1,4 +1,4 @@
-"""启动本地管理端（编辑 / 预览 / 自动保存）。不构建。"""
+"""开发模式启动管理端：服务就绪后打开浏览器；改代码自动重启 / 热刷新。"""
 
 from __future__ import annotations
 
@@ -17,6 +17,12 @@ ROOT = Path(__file__).resolve().parent
 PORT = 3456
 NAME = "admin"
 BLOCKED = ("cursor", "resources\\helpers", "resources/helpers")
+WATCH_SERVER = [
+    ROOT / "server.js",
+    ROOT / "lib",
+    ROOT / "build.js",
+    ROOT / "config.json",
+]
 
 
 def resolve_node() -> str:
@@ -51,7 +57,7 @@ def resolve_node() -> str:
     raise FileNotFoundError("未找到 Node.js：请安装并加入 PATH，或设置 NODE_BINARY")
 
 
-def npm_env(node: str) -> dict[str, str]:
+def node_env(node: str, port: int) -> dict[str, str]:
     env = os.environ.copy()
     node_dir = str(Path(node).parent)
     parts = [node_dir]
@@ -62,6 +68,8 @@ def npm_env(node: str) -> dict[str, str]:
             continue
         parts.append(part)
     env["PATH"] = os.pathsep.join(parts)
+    env["PORT"] = str(port)
+    env["DEV"] = "1"
     return env
 
 
@@ -76,7 +84,6 @@ def open_browser(url: str) -> None:
 
 
 def wait_until_ready(url: str, process: subprocess.Popen[str], timeout_s: float = 30.0) -> None:
-    """Poll the live server until it answers, or the process exits."""
     deadline = time.monotonic() + timeout_s
     probe = f"{url.rstrip('/')}/api/config"
     while time.monotonic() < deadline:
@@ -92,8 +99,35 @@ def wait_until_ready(url: str, process: subprocess.Popen[str], timeout_s: float 
     raise TimeoutError(f"等待管理端就绪超时：{probe}")
 
 
+def collect_mtimes(paths: list[Path]) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for path in paths:
+        if path.is_file():
+            out[str(path)] = path.stat().st_mtime
+        elif path.is_dir():
+            for child in path.rglob("*"):
+                if child.is_file() and child.suffix in {".js", ".mjs", ".json"}:
+                    out[str(child)] = child.stat().st_mtime
+    return out
+
+
+def stop_process(process: subprocess.Popen[str] | None) -> None:
+    if not process or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
+def start_server(node: str, env: dict[str, str]) -> subprocess.Popen[str]:
+    return subprocess.Popen([node, str(ROOT / "server.js")], cwd=ROOT, env=env)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="启动猫咪的博客管理端")
+    parser = argparse.ArgumentParser(description="开发模式启动猫咪的博客管理端")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-open", action="store_true")
     args = parser.parse_args()
@@ -105,38 +139,45 @@ def main() -> int:
 
     try:
         node = resolve_node()
-        env = npm_env(node)
-        env["PORT"] = str(args.port)
+        env = node_env(node, args.port)
         url = f"http://localhost:{args.port}"
-        print(f"[{NAME}] {url}")
+        print(f"[{NAME}] DEV {url}")
         print(f"[{NAME}] node={node}")
+        print(f"[{NAME}] 改 server/lib 会自动重启；改 admin/libs 会自动刷新页面")
 
-        process = subprocess.Popen(
-            [node, str(ROOT / "server.js")],
-            cwd=ROOT,
-            env=env,
-        )
+        process = start_server(node, env)
+        opened = False
+        stamps = collect_mtimes(WATCH_SERVER)
         try:
             wait_until_ready(url, process)
             print(f"[{NAME}] 已就绪")
             if not args.no_open:
                 open_browser(url)
-            return process.wait()
+                opened = True
+
+            while True:
+                if process.poll() is not None:
+                    print(f"[{NAME}] 服务退出，exit={process.returncode}", file=sys.stderr)
+                    return process.returncode or 1
+
+                time.sleep(0.4)
+                now = collect_mtimes(WATCH_SERVER)
+                if now != stamps:
+                    stamps = now
+                    print(f"[{NAME}] 检测到服务代码变化，正在重启…")
+                    stop_process(process)
+                    process = start_server(node, env)
+                    wait_until_ready(url, process)
+                    print(f"[{NAME}] 重启完成")
+                    if not opened and not args.no_open:
+                        open_browser(url)
+                        opened = True
         except KeyboardInterrupt:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            stop_process(process)
             print(f"\n[{NAME}] 已停止")
             return 0
         except Exception:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
+            stop_process(process)
             raise
     except FileNotFoundError as e:
         print(f"[{NAME}] {e}", file=sys.stderr)

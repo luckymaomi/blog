@@ -16,7 +16,12 @@
           <div id="post-list" class="post-list"></div>
         </div>
         <div class="side-foot">
-          <span id="save-state" class="save-state">就绪</span>
+          <div class="push-meta" id="push-meta">
+            <div><span class="k">远端</span> <span id="push-remote">—</span></div>
+            <div><span class="k">分支</span> <span id="push-branch">—</span></div>
+            <div><span class="k">版本</span> <span id="push-commit">—</span></div>
+            <div><span class="k">上次</span> <span id="push-at">—</span></div>
+          </div>
           <button type="button" class="btn soft" id="btn-push">推送</button>
         </div>
       </aside>
@@ -29,13 +34,10 @@
         <section class="editor-shell hidden" id="editor-shell">
           <header class="editor-bar">
             <div class="file-meta">
-              <input id="filename" class="filename" spellcheck="false" />
               <span id="live-title" class="live-title"></span>
+              <span id="live-file" class="live-file"></span>
             </div>
-            <div class="bar-actions">
-              <button type="button" class="btn ghost danger" id="btn-delete">删除</button>
-              <button type="button" class="btn soft" id="btn-save">保存</button>
-            </div>
+            <span id="edit-state" class="edit-state" role="status">已保存</span>
           </header>
 
           <div class="split">

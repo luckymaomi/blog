@@ -27,6 +27,8 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
   background:
     radial-gradient(1200px 600px at 10% -10%, #dff7f1 0%, transparent 55%),
     radial-gradient(900px 500px at 100% 0%, #fde68a55 0%, transparent 45%),
@@ -37,6 +39,7 @@ button,
 input,
 textarea {
   font: inherit;
+  font-size: inherit;
 }
 
 .app {
@@ -59,10 +62,10 @@ textarea {
 .brand-title {
   margin: 0;
   font-family: var(--display);
-  font-size: 1.55rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   color: #44403c;
 }
 
@@ -71,7 +74,9 @@ textarea {
   background: var(--panel);
   color: var(--ink);
   border-radius: 999px;
-  padding: 0.55rem 1rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 15px;
+  line-height: 1.4;
   cursor: pointer;
   transition: 160ms ease;
 }
@@ -133,77 +138,171 @@ textarea {
 .year-label {
   margin: 0.85rem 0 0.35rem;
   color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 15px;
 }
 
 .year-label:first-child {
   margin-top: 0;
 }
 
-.post-item {
-  width: 100%;
-  text-align: left;
+.post-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  gap: 0.15rem;
+  align-items: center;
   border: 1px solid transparent;
-  background: transparent;
   border-radius: 12px;
-  padding: 0.7rem 0.75rem;
-  cursor: pointer;
+  padding: 0.35rem 0.25rem;
 }
 
-.post-item:hover,
-.post-item.active {
+.post-row:hover,
+.post-row.active {
   background: #fff;
   border-color: var(--line);
-  box-shadow: var(--shadow);
 }
 
-.post-item .t {
-  display: block;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.post-item.dragging {
+.post-row.dragging {
   opacity: 0.55;
 }
 
-.post-item.drag-over {
+.post-row.drag-over {
   border-color: #99f6e4;
   background: #f0fdfa;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #a8a29e;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.icon-btn.icon-edit:hover {
+  color: #0f766e;
+  background: #ecfdf5;
+}
+
+.icon-btn.icon-del:hover {
+  color: var(--danger);
+  background: #fef2f2;
+}
+
+.post-main {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.post-main .t {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.post-main .f {
+  display: block;
+  margin-top: 0.1rem;
+  color: #a8a29e;
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.post-main .d {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.4;
 }
 
 .muted-tip {
   margin: 0.5rem 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 15px;
 }
 
 
 .side-foot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--line);
 }
 
-.save-state {
-  color: var(--muted);
-  font-size: 0.82rem;
+.push-meta {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink);
+  word-break: break-all;
 }
 
-.save-state.saving {
+.push-meta .k {
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
+
+.side-foot .btn {
+  width: 100%;
+}
+
+.live-title {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-file {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-state {
+  color: var(--muted);
+  font-size: 15px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.edit-state.editing {
   color: #a16207;
 }
 
-.save-state.saved {
+.edit-state.saving {
+  color: #a16207;
+}
+
+.edit-state.saved {
   color: var(--accent);
 }
 
-.save-state.error {
+.edit-state.error {
   color: var(--danger);
 }
 
@@ -217,8 +316,7 @@ textarea {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-family: var(--display);
-  font-size: 1.4rem;
+  font-size: 15px;
 }
 
 .hidden {
@@ -246,29 +344,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-}
-
-.filename {
-  width: min(520px, 70vw);
-  border: 0;
-  background: transparent;
-  font-family: var(--mono);
-  font-size: 0.92rem;
-  color: var(--ink);
-  outline: none;
-}
-
-.live-title {
-  color: var(--muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bar-actions {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .split {

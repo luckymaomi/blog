@@ -3,25 +3,34 @@ const emptyEl = document.getElementById('empty');
 const shellEl = document.getElementById('editor-shell');
 const editor = document.getElementById('editor');
 const preview = document.getElementById('preview');
-const filenameInput = document.getElementById('filename');
 const liveTitle = document.getElementById('live-title');
-const saveState = document.getElementById('save-state');
+const liveFile = document.getElementById('live-file');
+const editState = document.getElementById('edit-state');
 const btnNew = document.getElementById('btn-new');
-const btnSave = document.getElementById('btn-save');
-const btnDelete = document.getElementById('btn-delete');
 const btnPush = document.getElementById('btn-push');
+const pushRemote = document.getElementById('push-remote');
+const pushBranch = document.getElementById('push-branch');
+const pushCommit = document.getElementById('push-commit');
+const pushAt = document.getElementById('push-at');
 
 let posts = [];
 let current = null;
 let dirty = false;
 let saveTimer = null;
 let previewTimer = null;
+let saveGeneration = 0;
 let lastSavedBody = '';
 let dragFrom = null;
 
+const ICON_EDIT =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 17.3V20h2.7l10-10.1-2.7-2.7L4 17.3zM19.8 7.9c.3-.3.3-.8 0-1.1l-2.6-2.6a.8.8 0 0 0-1.1 0l-1.5 1.5 3.7 3.7 1.5-1.5z"/></svg>';
+const ICON_DEL =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9zm-1 12h12a1 1 0 0 0 1-1V8H5v12a1 1 0 0 0 1 1z"/></svg>';
+
 function setState(text, kind = '') {
-  saveState.textContent = text;
-  saveState.className = `save-state ${kind}`.trim();
+  if (!editState) return;
+  editState.textContent = text;
+  editState.className = `edit-state ${kind}`.trim();
 }
 
 async function api(url, options = {}) {
@@ -55,6 +64,71 @@ function groupPosts(items) {
   return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 
+function formatPushTime(iso) {
+  if (!iso) return '尚未推送';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function refreshPushMeta() {
+  try {
+    const data = await api('/api/push-status');
+    pushRemote.textContent = data.remote || '未配置';
+    pushBranch.textContent = data.branch || '未配置';
+    pushCommit.textContent = data.commit || '—';
+    pushAt.textContent = formatPushTime(data.at);
+  } catch {
+    pushRemote.textContent = '读取失败';
+  }
+}
+
+async function renameFile(post) {
+  const next = prompt(
+    '文件名（与正文标题无关，格式 YYYY-MM-DD-名称.md）',
+    post.filename,
+  );
+  if (next == null) return;
+  const name = next.trim();
+  if (!name || name === post.filename) return;
+  try {
+    saveGeneration += 1;
+    const updated = await api('/api/rename', {
+      method: 'POST',
+      body: JSON.stringify({ from: post.filename, to: name }),
+    });
+    if (current === post.filename) {
+      current = updated.filename;
+      liveFile.textContent = updated.filename;
+    }
+    await refreshList(current);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function deletePost(filename, title) {
+  const label = title || filename;
+  if (!confirm(`确认删除「${label}」？\n删除后无法恢复。`)) return;
+  try {
+    await api(`/api/posts/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    if (current === filename) {
+      current = null;
+      dirty = false;
+      editor.value = '';
+      preview.innerHTML = '';
+      liveTitle.textContent = '';
+      liveFile.textContent = '';
+      shellEl.classList.add('hidden');
+      emptyEl.classList.remove('hidden');
+    }
+    await refreshList();
+  } catch (e) {
+    setState(e.message, 'error');
+  }
+}
+
 function renderList() {
   listEl.innerHTML = '';
   const groups = groupPosts(posts);
@@ -73,32 +147,62 @@ function renderList() {
     listEl.appendChild(label);
 
     for (const post of items) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `post-item${current === post.filename ? ' active' : ''}`;
-      btn.draggable = true;
-      btn.dataset.filename = post.filename;
-      btn.innerHTML = `<span class="t"></span><span class="d"></span>`;
-      btn.querySelector('.t').textContent = post.title;
-      btn.querySelector('.d').textContent = post.date;
+      const row = document.createElement('div');
+      row.className = `post-row${current === post.filename ? ' active' : ''}`;
+      row.draggable = true;
+      row.dataset.filename = post.filename;
 
-      btn.addEventListener('click', () => openPost(post.filename));
-      btn.addEventListener('dragstart', () => {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'icon-btn icon-edit';
+      edit.title = '编辑文件名';
+      edit.setAttribute('aria-label', `编辑文件名 ${post.filename}`);
+      edit.innerHTML = ICON_EDIT;
+      edit.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renameFile(post);
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'icon-btn icon-del';
+      del.title = '删除';
+      del.setAttribute('aria-label', `删除 ${post.title}`);
+      del.innerHTML = ICON_DEL;
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deletePost(post.filename, post.title);
+      });
+
+      const main = document.createElement('button');
+      main.type = 'button';
+      main.className = 'post-main';
+      main.innerHTML = '<span class="t"></span><span class="f"></span><span class="d"></span>';
+      main.querySelector('.t').textContent = post.title;
+      main.querySelector('.f').textContent = post.filename;
+      main.querySelector('.d').textContent = post.date;
+      main.addEventListener('click', () => openPost(post.filename));
+
+      row.addEventListener('dragstart', (e) => {
+        if (e.target.closest('.icon-btn')) {
+          e.preventDefault();
+          return;
+        }
         dragFrom = post.filename;
-        btn.classList.add('dragging');
+        row.classList.add('dragging');
       });
-      btn.addEventListener('dragend', () => {
+      row.addEventListener('dragend', () => {
         dragFrom = null;
-        btn.classList.remove('dragging');
+        row.classList.remove('dragging');
       });
-      btn.addEventListener('dragover', (e) => {
+      row.addEventListener('dragover', (e) => {
         e.preventDefault();
-        btn.classList.add('drag-over');
+        row.classList.add('drag-over');
       });
-      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
-      btn.addEventListener('drop', async (e) => {
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+      row.addEventListener('drop', async (e) => {
         e.preventDefault();
-        btn.classList.remove('drag-over');
+        row.classList.remove('drag-over');
         const to = post.filename;
         if (!dragFrom || dragFrom === to) return;
         const order = posts.map((p) => p.filename);
@@ -119,7 +223,10 @@ function renderList() {
         }
       });
 
-      listEl.appendChild(btn);
+      row.appendChild(edit);
+      row.appendChild(main);
+      row.appendChild(del);
+      listEl.appendChild(row);
     }
   }
 }
@@ -131,22 +238,23 @@ async function refreshList(selectFile) {
 }
 
 async function openPost(filename) {
-  if (dirty && current) await saveNow(true);
+  if (dirty && current) await saveNow();
+  saveGeneration += 1;
   const post = await api(`/api/posts/${encodeURIComponent(filename)}`);
   current = post.filename;
   dirty = false;
   lastSavedBody = post.body;
-  filenameInput.value = post.filename;
   editor.value = post.body;
   liveTitle.textContent = post.title;
+  liveFile.textContent = post.filename;
   preview.innerHTML = post.html;
   emptyEl.classList.add('hidden');
   shellEl.classList.remove('hidden');
   renderList();
-  setState('已同步', 'saved');
+  setState('已保存', 'saved');
 }
 
-async function refreshPreview() {
+function refreshPreview() {
   preview.innerHTML = marked.parse(editor.value || '');
   liveTitle.textContent = extractTitle(editor.value);
 }
@@ -164,7 +272,7 @@ function schedulePreview() {
 
 function scheduleSave() {
   dirty = true;
-  setState('待保存…', 'saving');
+  setState('正在编辑', 'editing');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveNow().catch((e) => setState(e.message, 'error'));
@@ -174,26 +282,25 @@ function scheduleSave() {
 async function saveNow() {
   if (!current) return;
   clearTimeout(saveTimer);
+  const filename = current;
   const body = editor.value;
-  const nextName = filenameInput.value.trim();
-  setState('保存中…', 'saving');
+  const generation = ++saveGeneration;
+  setState('正在保存', 'saving');
 
-  if (nextName && nextName !== current) {
-    await api('/api/rename', {
-      method: 'POST',
-      body: JSON.stringify({ from: current, to: nextName }),
-    });
-    current = nextName;
-  }
-
-  await api(`/api/posts/${encodeURIComponent(current)}`, {
+  await api(`/api/posts/${encodeURIComponent(filename)}`, {
     method: 'PUT',
     body: JSON.stringify({ body }),
   });
+
+  // Ignore stale responses after switch/rename/newer save.
+  if (generation !== saveGeneration || current !== filename) return;
+
   lastSavedBody = body;
   dirty = false;
   await refreshList(current);
+  if (current !== filename) return;
   liveTitle.textContent = extractTitle(body);
+  liveFile.textContent = current;
   setState('已保存', 'saved');
 }
 
@@ -212,38 +319,17 @@ btnNew.addEventListener('click', async () => {
   }
 });
 
-btnSave.addEventListener('click', () => {
-  saveNow().catch((e) => setState(e.message, 'error'));
-});
-
-btnDelete.addEventListener('click', async () => {
-  if (!current) return;
-  if (!confirm(`删除 ${current}？`)) return;
-  try {
-    await api(`/api/posts/${encodeURIComponent(current)}`, { method: 'DELETE' });
-    current = null;
-    dirty = false;
-    editor.value = '';
-    preview.innerHTML = '';
-    shellEl.classList.add('hidden');
-    emptyEl.classList.remove('hidden');
-    await refreshList();
-    setState('已删除', 'saved');
-  } catch (e) {
-    setState(e.message, 'error');
-  }
-});
-
 btnPush.addEventListener('click', async () => {
   try {
     if (dirty && current) await saveNow();
-    setState('推送中…', 'saving');
+    setState('正在推送', 'saving');
     btnPush.disabled = true;
-    const result = await api('/api/push', {
+    await api('/api/push', {
       method: 'POST',
       body: JSON.stringify({ message: '更新文章' }),
     });
-    setState(result.committed ? '已推送' : '已推送（无新提交）', 'saved');
+    setState('已推送', 'saved');
+    await refreshPushMeta();
   } catch (e) {
     setState(e.message, 'error');
   } finally {
@@ -256,11 +342,6 @@ editor.addEventListener('input', () => {
   scheduleSave();
 });
 
-filenameInput.addEventListener('change', () => {
-  dirty = true;
-  scheduleSave();
-});
-
 window.addEventListener('beforeunload', (e) => {
   if (dirty) {
     e.preventDefault();
@@ -268,4 +349,19 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
+function connectDevReload() {
+  if (!window.EventSource) return;
+  let openedOnce = false;
+  const es = new EventSource('/api/dev/reload');
+  es.addEventListener('reload', () => {
+    location.reload();
+  });
+  es.onopen = () => {
+    if (openedOnce) location.reload();
+    openedOnce = true;
+  };
+}
+
 refreshList().catch((e) => setState(e.message, 'error'));
+refreshPushMeta();
+connectDevReload();
