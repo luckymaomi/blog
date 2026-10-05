@@ -1,4 +1,4 @@
-# Talk
+# 猫咪的博客
 
 - 网站：https://luckymaomi.github.io/talk/
 - 仓库：https://github.com/luckymaomi/talk

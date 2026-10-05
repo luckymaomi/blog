@@ -93,7 +93,7 @@ def wait_until_ready(url: str, process: subprocess.Popen[str], timeout_s: float 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="启动 Talk 管理端")
+    parser = argparse.ArgumentParser(description="启动猫咪的博客管理端")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-open", action="store_true")
     args = parser.parse_args()

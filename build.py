@@ -60,7 +60,7 @@ def node_env(node: str) -> dict[str, str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="构建 Talk 静态站")
+    parser = argparse.ArgumentParser(description="构建猫咪的博客静态站")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     dist = ROOT / "dist"
