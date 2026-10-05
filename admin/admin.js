@@ -11,6 +11,7 @@ const btnPush = document.getElementById('btn-push');
 const pushRemote = document.getElementById('push-remote');
 const pushBranch = document.getElementById('push-branch');
 const pushCommit = document.getElementById('push-commit');
+const pushMessageMeta = document.getElementById('push-message-meta');
 const pushAt = document.getElementById('push-at');
 const nameDialog = document.getElementById('name-dialog');
 const nameDialogTitle = document.getElementById('name-dialog-title');
@@ -158,9 +159,11 @@ async function refreshPushMeta() {
     pushRemote.textContent = data.remote || '未配置';
     pushBranch.textContent = data.branch || '未配置';
     pushCommit.textContent = data.commit || '—';
+    pushMessageMeta.textContent = data.message || '—';
     pushAt.textContent = formatPushTime(data.at);
   } catch {
     pushRemote.textContent = '读取失败';
+    pushMessageMeta.textContent = '—';
   }
 }
 

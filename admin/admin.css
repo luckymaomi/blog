@@ -331,6 +331,11 @@ textarea {
   margin-right: 0.35rem;
 }
 
+.push-meta .push-msg {
+  color: var(--muted);
+  margin-left: 0.35rem;
+}
+
 .side-foot .btn {
   width: 100%;
 }
