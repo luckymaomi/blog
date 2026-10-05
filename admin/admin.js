@@ -12,6 +12,10 @@ const pushRemote = document.getElementById('push-remote');
 const pushBranch = document.getElementById('push-branch');
 const pushCommit = document.getElementById('push-commit');
 const pushAt = document.getElementById('push-at');
+const nameDialog = document.getElementById('name-dialog');
+const nameDialogTitle = document.getElementById('name-dialog-title');
+const nameDate = document.getElementById('name-date');
+const nameSlug = document.getElementById('name-slug');
 
 let posts = [];
 let current = null;
@@ -54,14 +58,59 @@ function extractTitle(body) {
   return '未命名';
 }
 
-function groupPosts(items) {
-  const map = new Map();
-  for (const p of items) {
-    const list = map.get(p.year) || [];
-    list.push(p);
-    map.set(p.year, list);
-  }
-  return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+function todayDate() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function parsePostParts(filename) {
+  const m = String(filename || '').match(/^(\d{4}-\d{2}-\d{2})-(.+)\.md$/i);
+  if (!m) return { date: todayDate(), slug: '新文章' };
+  return { date: m[1], slug: m[2] };
+}
+
+function buildFilename(date, slug) {
+  const d = String(date || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error('日期格式应为 YYYY-MM-DD');
+  const name = String(slug || '')
+    .trim()
+    .replace(/\.md$/i, '')
+    .replace(/[/\\]/g, '-')
+    .replace(/\s+/g, '-');
+  if (!name) throw new Error('名称不能为空');
+  return `${d}-${name}.md`;
+}
+
+function askName({ title, date, slug }) {
+  nameDialogTitle.textContent = title;
+  nameDate.value = date || todayDate();
+  nameSlug.value = slug || '';
+  nameDialog.showModal();
+  queueMicrotask(() => {
+    nameSlug.focus();
+    nameSlug.select();
+  });
+  return new Promise((resolve) => {
+    const onClose = () => {
+      nameDialog.removeEventListener('close', onClose);
+      if (nameDialog.returnValue !== 'ok') {
+        resolve(null);
+        return;
+      }
+      try {
+        resolve({
+          date: nameDate.value,
+          slug: nameSlug.value,
+          filename: buildFilename(nameDate.value, nameSlug.value),
+        });
+      } catch (e) {
+        alert(e.message);
+        resolve(null);
+      }
+    };
+    nameDialog.addEventListener('close', onClose);
+  });
 }
 
 function formatPushTime(iso) {
@@ -85,18 +134,18 @@ async function refreshPushMeta() {
 }
 
 async function renameFile(post) {
-  const next = prompt(
-    '文件名（与正文标题无关，格式 YYYY-MM-DD-名称.md）',
-    post.filename,
-  );
-  if (next == null) return;
-  const name = next.trim();
-  if (!name || name === post.filename) return;
+  const parts = parsePostParts(post.filename);
+  const next = await askName({
+    title: '编辑文件名',
+    date: parts.date,
+    slug: parts.slug,
+  });
+  if (!next || next.filename === post.filename) return;
   try {
     saveGeneration += 1;
     const updated = await api('/api/rename', {
       method: 'POST',
-      body: JSON.stringify({ from: post.filename, to: name }),
+      body: JSON.stringify({ from: post.filename, to: next.filename }),
     });
     if (current === post.filename) {
       current = updated.filename;
@@ -108,9 +157,8 @@ async function renameFile(post) {
   }
 }
 
-async function deletePost(filename, title) {
-  const label = title || filename;
-  if (!confirm(`确认删除「${label}」？\n删除后无法恢复。`)) return;
+async function deletePost(filename) {
+  if (!confirm(`确认删除「${filename}」？\n删除后无法恢复。`)) return;
   try {
     await api(`/api/posts/${encodeURIComponent(filename)}`, { method: 'DELETE' });
     if (current === filename) {
@@ -131,8 +179,7 @@ async function deletePost(filename, title) {
 
 function renderList() {
   listEl.innerHTML = '';
-  const groups = groupPosts(posts);
-  if (!groups.length) {
+  if (!posts.length) {
     const tip = document.createElement('p');
     tip.className = 'muted-tip';
     tip.textContent = '还没有文章';
@@ -140,94 +187,90 @@ function renderList() {
     return;
   }
 
-  for (const [year, items] of groups) {
-    const label = document.createElement('div');
-    label.className = 'year-label';
-    label.textContent = year;
-    listEl.appendChild(label);
+  for (const post of posts) {
+    const row = document.createElement('div');
+    row.className = `post-row${current === post.filename ? ' active' : ''}`;
+    row.draggable = true;
+    row.dataset.filename = post.filename;
 
-    for (const post of items) {
-      const row = document.createElement('div');
-      row.className = `post-row${current === post.filename ? ' active' : ''}`;
-      row.draggable = true;
-      row.dataset.filename = post.filename;
+    const actions = document.createElement('div');
+    actions.className = 'post-actions';
 
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.className = 'icon-btn icon-edit';
-      edit.title = '编辑文件名';
-      edit.setAttribute('aria-label', `编辑文件名 ${post.filename}`);
-      edit.innerHTML = ICON_EDIT;
-      edit.addEventListener('click', (e) => {
-        e.stopPropagation();
-        renameFile(post);
-      });
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'icon-btn icon-edit';
+    edit.title = '编辑文件名';
+    edit.setAttribute('aria-label', `编辑文件名 ${post.filename}`);
+    edit.innerHTML = ICON_EDIT;
+    edit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renameFile(post);
+    });
 
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'icon-btn icon-del';
-      del.title = '删除';
-      del.setAttribute('aria-label', `删除 ${post.title}`);
-      del.innerHTML = ICON_DEL;
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deletePost(post.filename, post.title);
-      });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'icon-btn icon-del';
+    del.title = '删除';
+    del.setAttribute('aria-label', `删除 ${post.filename}`);
+    del.innerHTML = ICON_DEL;
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deletePost(post.filename);
+    });
 
-      const main = document.createElement('button');
-      main.type = 'button';
-      main.className = 'post-main';
-      main.innerHTML = '<span class="t"></span><span class="f"></span><span class="d"></span>';
-      main.querySelector('.t').textContent = post.title;
-      main.querySelector('.f').textContent = post.filename;
-      main.querySelector('.d').textContent = post.date;
-      main.addEventListener('click', () => openPost(post.filename));
+    actions.appendChild(edit);
+    actions.appendChild(del);
 
-      row.addEventListener('dragstart', (e) => {
-        if (e.target.closest('.icon-btn')) {
-          e.preventDefault();
-          return;
-        }
-        dragFrom = post.filename;
-        row.classList.add('dragging');
-      });
-      row.addEventListener('dragend', () => {
-        dragFrom = null;
-        row.classList.remove('dragging');
-      });
-      row.addEventListener('dragover', (e) => {
+    const main = document.createElement('button');
+    main.type = 'button';
+    main.className = 'post-main';
+    main.textContent = post.filename;
+    main.title = post.filename;
+    main.addEventListener('click', () => openPost(post.filename));
+
+    row.addEventListener('dragstart', (e) => {
+      if (e.target.closest('.icon-btn')) {
         e.preventDefault();
-        row.classList.add('drag-over');
-      });
-      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
-      row.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        row.classList.remove('drag-over');
-        const to = post.filename;
-        if (!dragFrom || dragFrom === to) return;
-        const order = posts.map((p) => p.filename);
-        const fromIdx = order.indexOf(dragFrom);
-        const toIdx = order.indexOf(to);
-        if (fromIdx < 0 || toIdx < 0) return;
-        order.splice(fromIdx, 1);
-        order.splice(toIdx, 0, dragFrom);
-        try {
-          posts = await api('/api/reorder', {
-            method: 'POST',
-            body: JSON.stringify({ order }),
-          });
-          renderList();
-          setState('已排序', 'saved');
-        } catch (err) {
-          setState(err.message, 'error');
-        }
-      });
+        return;
+      }
+      dragFrom = post.filename;
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => {
+      dragFrom = null;
+      row.classList.remove('dragging');
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const to = post.filename;
+      if (!dragFrom || dragFrom === to) return;
+      const order = posts.map((p) => p.filename);
+      const fromIdx = order.indexOf(dragFrom);
+      const toIdx = order.indexOf(to);
+      if (fromIdx < 0 || toIdx < 0) return;
+      order.splice(fromIdx, 1);
+      order.splice(toIdx, 0, dragFrom);
+      try {
+        posts = await api('/api/reorder', {
+          method: 'POST',
+          body: JSON.stringify({ order }),
+        });
+        renderList();
+        setState('已排序', 'saved');
+      } catch (err) {
+        setState(err.message, 'error');
+      }
+    });
 
-      row.appendChild(edit);
-      row.appendChild(main);
-      row.appendChild(del);
-      listEl.appendChild(row);
-    }
+    row.appendChild(main);
+    row.appendChild(actions);
+    listEl.appendChild(row);
   }
 }
 
@@ -292,7 +335,6 @@ async function saveNow() {
     body: JSON.stringify({ body }),
   });
 
-  // Ignore stale responses after switch/rename/newer save.
   if (generation !== saveGeneration || current !== filename) return;
 
   lastSavedBody = body;
@@ -306,11 +348,15 @@ async function saveNow() {
 
 btnNew.addEventListener('click', async () => {
   try {
-    const title = prompt('标题', '新文章');
-    if (title == null) return;
+    const next = await askName({
+      title: '新文章',
+      date: todayDate(),
+      slug: '新文章',
+    });
+    if (!next) return;
     const post = await api('/api/posts', {
       method: 'POST',
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title: next.slug, date: next.date, slug: next.slug }),
     });
     await refreshList(post.filename);
     await openPost(post.filename);

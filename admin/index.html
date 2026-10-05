@@ -53,6 +53,24 @@
         </section>
       </main>
     </div>
+    <dialog class="name-dialog" id="name-dialog">
+      <form method="dialog" id="name-form" class="name-form">
+        <h2 id="name-dialog-title">编辑文件名</h2>
+        <label class="name-field">
+          <span>日期</span>
+          <input type="date" id="name-date" required />
+        </label>
+        <label class="name-field">
+          <span>名称</span>
+          <input type="text" id="name-slug" required autocomplete="off" />
+        </label>
+        <div class="name-actions">
+          <button type="submit" value="cancel" class="name-btn" id="name-cancel" formnovalidate>取消</button>
+          <button type="submit" value="ok" class="name-btn name-btn-ok" id="name-ok">确定</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/libs/marked/marked.min.js"></script>
     <script src="/admin.js"></script>
   </body>
