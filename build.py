@@ -45,7 +45,7 @@ def resolve_node() -> str:
     raise FileNotFoundError("未找到 Node.js：请安装并加入 PATH，或设置 NODE_BINARY")
 
 
-def npm_env(node: str) -> dict[str, str]:
+def node_env(node: str) -> dict[str, str]:
     env = os.environ.copy()
     node_dir = str(Path(node).parent)
     parts = [node_dir]
@@ -59,26 +59,20 @@ def npm_env(node: str) -> dict[str, str]:
     return env
 
 
-def ensure_deps(env: dict[str, str]) -> None:
-    if (ROOT / "node_modules" / "marked").exists():
-        return
-    print(f"[{NAME}] 首次安装依赖…")
-    npm = "npm.cmd" if os.name == "nt" else "npm"
-    subprocess.run([npm, "install"], cwd=ROOT, env=env, check=True)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="构建 Talk 静态站")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     dist = ROOT / "dist"
+    marked = ROOT / "libs" / "marked" / "marked.esm.js"
     try:
+        if not marked.is_file():
+            raise FileNotFoundError(f"缺少本地 marked：{marked}")
         if dist.exists() and not args.force:
             print(f"[{NAME}] dist 已存在，跳过。重建请加 --force")
             return 0
         node = resolve_node()
-        env = npm_env(node)
-        ensure_deps(env)
+        env = node_env(node)
         print(f"[{NAME}] 构建中…")
         subprocess.run([node, str(ROOT / "build.js")], cwd=ROOT, env=env, check=True)
         return 0

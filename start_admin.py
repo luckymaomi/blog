@@ -7,8 +7,9 @@ import os
 import shutil
 import subprocess
 import sys
-import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -64,14 +65,6 @@ def npm_env(node: str) -> dict[str, str]:
     return env
 
 
-def ensure_deps(env: dict[str, str]) -> None:
-    if (ROOT / "node_modules" / "marked").exists():
-        return
-    print(f"[{NAME}] 首次安装依赖…")
-    npm = "npm.cmd" if os.name == "nt" else "npm"
-    subprocess.run([npm, "install"], cwd=ROOT, env=env, check=True)
-
-
 def open_browser(url: str) -> None:
     if os.name == "nt":
         try:
@@ -82,32 +75,75 @@ def open_browser(url: str) -> None:
     webbrowser.open(url)
 
 
+def wait_until_ready(url: str, process: subprocess.Popen[str], timeout_s: float = 30.0) -> None:
+    """Poll the live server until it answers, or the process exits."""
+    deadline = time.monotonic() + timeout_s
+    probe = f"{url.rstrip('/')}/api/config"
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f"管理端进程已退出，exit={process.returncode}")
+        try:
+            with urllib.request.urlopen(probe, timeout=0.5) as resp:
+                if 200 <= resp.status < 500:
+                    return
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            pass
+        time.sleep(0.1)
+    raise TimeoutError(f"等待管理端就绪超时：{probe}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="启动 Talk 管理端")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-open", action="store_true")
     args = parser.parse_args()
 
+    marked = ROOT / "libs" / "marked" / "marked.esm.js"
+    if not marked.is_file():
+        print(f"[{NAME}] 缺少本地 marked：{marked}", file=sys.stderr)
+        return 1
+
     try:
         node = resolve_node()
         env = npm_env(node)
         env["PORT"] = str(args.port)
-        ensure_deps(env)
         url = f"http://localhost:{args.port}"
         print(f"[{NAME}] {url}")
         print(f"[{NAME}] node={node}")
-        if not args.no_open:
-            threading.Thread(target=lambda: (time.sleep(0.8), open_browser(url)), daemon=True).start()
-        subprocess.run([node, str(ROOT / "server.js")], cwd=ROOT, env=env, check=True)
-        return 0
+
+        process = subprocess.Popen(
+            [node, str(ROOT / "server.js")],
+            cwd=ROOT,
+            env=env,
+        )
+        try:
+            wait_until_ready(url, process)
+            print(f"[{NAME}] 已就绪")
+            if not args.no_open:
+                open_browser(url)
+            return process.wait()
+        except KeyboardInterrupt:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            print(f"\n[{NAME}] 已停止")
+            return 0
+        except Exception:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+            raise
     except FileNotFoundError as e:
         print(f"[{NAME}] {e}", file=sys.stderr)
         return 1
-    except subprocess.CalledProcessError as e:
-        return e.returncode or 1
-    except KeyboardInterrupt:
-        print(f"\n[{NAME}] 已停止")
-        return 0
+    except Exception as e:
+        print(f"[{NAME}] {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

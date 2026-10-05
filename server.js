@@ -11,7 +11,6 @@ import {
   listPosts,
   loadConfig,
   readPost,
-  renderMarkdown,
   renamePost,
   reorderPosts,
   writePost,
@@ -21,6 +20,7 @@ import { buildSite } from './lib/build-site.js';
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 3456);
 const ADMIN_DIR = path.join(ROOT, 'admin');
+const LIBS_DIR = path.join(ROOT, 'libs');
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   const data = typeof body === 'string' ? body : JSON.stringify(body);
@@ -61,9 +61,13 @@ function contentType(file) {
       '.html': 'text/html; charset=utf-8',
       '.css': 'text/css; charset=utf-8',
       '.js': 'text/javascript; charset=utf-8',
+      '.mjs': 'text/javascript; charset=utf-8',
       '.svg': 'image/svg+xml',
       '.png': 'image/png',
       '.ico': 'image/x-icon',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
     }[ext] || 'application/octet-stream'
   );
 }
@@ -182,11 +186,6 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, deletePost(name));
     }
 
-    if (req.method === 'POST' && pathname === '/api/preview') {
-      const body = await readJson(req);
-      return send(res, 200, { html: renderMarkdown(body.text || '') });
-    }
-
     if (req.method === 'POST' && pathname === '/api/build') {
       const result = buildSite();
       return send(res, 200, result);
@@ -200,6 +199,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && (pathname === '/' || pathname === '/admin' || pathname === '/admin/')) {
       return serveStatic(res, path.join(ADMIN_DIR, 'index.html'));
+    }
+
+    if (req.method === 'GET' && pathname.startsWith('/libs/')) {
+      const local = path.join(LIBS_DIR, pathname.slice('/libs/'.length));
+      if (local.startsWith(LIBS_DIR)) return serveStatic(res, local);
     }
 
     if (req.method === 'GET' && pathname.startsWith('/admin/')) {

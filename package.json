@@ -6,8 +6,5 @@
   "scripts": {
     "admin": "node server.js",
     "build": "node build.js"
-  },
-  "dependencies": {
-    "marked": "^15.0.12"
   }
 }

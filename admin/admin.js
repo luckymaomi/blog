@@ -147,18 +147,18 @@ async function openPost(filename) {
 }
 
 async function refreshPreview() {
-  const data = await api('/api/preview', {
-    method: 'POST',
-    body: JSON.stringify({ text: editor.value }),
-  });
-  preview.innerHTML = data.html;
+  preview.innerHTML = marked.parse(editor.value || '');
   liveTitle.textContent = extractTitle(editor.value);
 }
 
 function schedulePreview() {
   clearTimeout(previewTimer);
   previewTimer = setTimeout(() => {
-    refreshPreview().catch((e) => setState(e.message, 'error'));
+    try {
+      refreshPreview();
+    } catch (e) {
+      setState(e.message, 'error');
+    }
   }, 180);
 }
 
