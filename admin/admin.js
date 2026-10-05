@@ -16,6 +16,8 @@ const nameDialog = document.getElementById('name-dialog');
 const nameDialogTitle = document.getElementById('name-dialog-title');
 const nameDate = document.getElementById('name-date');
 const nameSlug = document.getElementById('name-slug');
+const pushDialog = document.getElementById('push-dialog');
+const pushMessage = document.getElementById('push-message');
 
 let posts = [];
 let current = null;
@@ -110,6 +112,35 @@ function askName({ title, date, slug }) {
       }
     };
     nameDialog.addEventListener('close', onClose);
+  });
+}
+
+function defaultPushMessage() {
+  if (current) {
+    const { slug } = parsePostParts(current);
+    return `更新 ${slug}`;
+  }
+  return '更新文章';
+}
+
+function askPushMessage() {
+  pushMessage.value = defaultPushMessage();
+  pushDialog.showModal();
+  queueMicrotask(() => {
+    pushMessage.focus();
+    pushMessage.select();
+  });
+  return new Promise((resolve) => {
+    const onClose = () => {
+      pushDialog.removeEventListener('close', onClose);
+      if (pushDialog.returnValue !== 'ok') {
+        resolve(null);
+        return;
+      }
+      const message = pushMessage.value.trim();
+      resolve(message || defaultPushMessage());
+    };
+    pushDialog.addEventListener('close', onClose);
   });
 }
 
@@ -368,11 +399,13 @@ btnNew.addEventListener('click', async () => {
 btnPush.addEventListener('click', async () => {
   try {
     if (dirty && current) await saveNow();
+    const message = await askPushMessage();
+    if (!message) return;
     setState('正在推送', 'saving');
     btnPush.disabled = true;
     await api('/api/push', {
       method: 'POST',
-      body: JSON.stringify({ message: '更新文章' }),
+      body: JSON.stringify({ message }),
     });
     setState('已推送', 'saved');
     await refreshPushMeta();

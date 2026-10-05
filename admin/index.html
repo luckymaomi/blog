@@ -71,6 +71,20 @@
       </form>
     </dialog>
 
+    <dialog class="name-dialog" id="push-dialog">
+      <form method="dialog" id="push-form" class="name-form">
+        <h2>推送说明</h2>
+        <label class="name-field">
+          <span>说明</span>
+          <input type="text" id="push-message" required autocomplete="off" maxlength="200" />
+        </label>
+        <div class="name-actions">
+          <button type="submit" value="cancel" class="name-btn" formnovalidate>取消</button>
+          <button type="submit" value="ok" class="name-btn name-btn-ok">推送</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/libs/marked/marked.min.js"></script>
     <script src="/admin.js"></script>
   </body>
