@@ -51,6 +51,7 @@ async function api(url, options = {}) {
   return data;
 }
 
+
 function extractTitle(body) {
   const lines = String(body || '').split(/\r?\n/);
   for (const line of lines) {
@@ -393,7 +394,7 @@ btnExport.addEventListener('click', async () => {
     }
     const blob = await res.blob();
     const filename =
-      res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'all-posts.md';
+      res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'maomi-full-blogs.md';
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
