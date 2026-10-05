@@ -7,6 +7,8 @@ import {
   ROOT,
   createPost,
   deletePost,
+  exportPostsFilename,
+  exportPostsMarkdown,
   listPosts,
   loadConfig,
   readPost,
@@ -252,6 +254,18 @@ async function handleApi(req, res, pathname) {
       200,
       listPosts().map(({ body, ...rest }) => rest),
     );
+  }
+
+  if (req.method === 'GET' && pathname === '/api/export') {
+    const markdown = exportPostsMarkdown();
+    const filename = exportPostsFilename();
+    res.writeHead(200, {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    });
+    res.end(markdown);
+    return true;
   }
 
   if (req.method === 'GET' && pathname.startsWith('/api/posts/')) {

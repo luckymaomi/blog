@@ -46,6 +46,20 @@ a:hover {
   margin-bottom: 2.2rem;
 }
 
+.site-actions {
+  margin: 0.75rem 0 0;
+}
+
+.export-link {
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-decoration: underline;
+}
+
+.export-link:hover {
+  color: var(--accent);
+}
+
 .site-title {
   margin: 0;
   font-family: var(--display);

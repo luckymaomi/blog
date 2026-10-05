@@ -7,6 +7,7 @@ const liveTitle = document.getElementById('live-title');
 const liveFile = document.getElementById('live-file');
 const editState = document.getElementById('edit-state');
 const btnNew = document.getElementById('btn-new');
+const btnExport = document.getElementById('btn-export');
 const btnPush = document.getElementById('btn-push');
 const pushRemote = document.getElementById('push-remote');
 const pushBranch = document.getElementById('push-branch');
@@ -379,6 +380,33 @@ async function saveNow() {
   liveFile.textContent = current;
   setState('已保存', 'saved');
 }
+
+btnExport.addEventListener('click', async () => {
+  try {
+    if (dirty && current) await saveNow();
+    btnExport.disabled = true;
+    setState('正在导出', 'saving');
+    const res = await fetch('/api/export');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `导出失败 ${res.status}`);
+    }
+    const blob = await res.blob();
+    const filename =
+      res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'all-posts.md';
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    setState('已导出', 'saved');
+  } catch (e) {
+    setState(e.message, 'error');
+  } finally {
+    btnExport.disabled = false;
+  }
+});
 
 btnNew.addEventListener('click', async () => {
   try {
