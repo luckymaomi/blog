@@ -4,11 +4,11 @@
     "description": ""
   },
   "github": {
-    "repo": "https://github.com/luckymaomi/talk",
+    "repo": "https://github.com/luckymaomi/blog",
     "branch": "master"
   },
   "push": {
-    "remote": "https://github.com/luckymaomi/talk.git",
+    "remote": "https://github.com/luckymaomi/blog.git",
     "branch": "master"
   }
 }

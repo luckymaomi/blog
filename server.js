@@ -183,10 +183,10 @@ async function pushToRemote(message) {
   await ensureOrigin(remoteUrl);
 
   const identity = {
-    GIT_AUTHOR_NAME: 'talk',
-    GIT_AUTHOR_EMAIL: 'talk@users.noreply.github.com',
-    GIT_COMMITTER_NAME: 'talk',
-    GIT_COMMITTER_EMAIL: 'talk@users.noreply.github.com',
+    GIT_AUTHOR_NAME: 'blog',
+    GIT_AUTHOR_EMAIL: 'blog@users.noreply.github.com',
+    GIT_COMMITTER_NAME: 'blog',
+    GIT_COMMITTER_EMAIL: 'blog@users.noreply.github.com',
   };
 
   await git(['add', '--', ...PUSH_PATHS]);
@@ -358,7 +358,7 @@ const server = http.createServer(async (req, res) => {
 
 watchDevFiles();
 server.listen(PORT, () => {
-  console.log(`[talk] admin http://localhost:${PORT}`);
-  console.log(`[talk] posts  ${path.join(ROOT, 'posts')}`);
-  if (DEV) console.log('[talk] DEV live reload on');
+  console.log(`[blog] admin http://localhost:${PORT}`);
+  console.log(`[blog] posts  ${path.join(ROOT, 'posts')}`);
+  if (DEV) console.log('[blog] DEV live reload on');
 });
